@@ -1,6 +1,7 @@
 import streamlit as st
 import base64
 import hashlib
+import datetime  # 新增：处理日期
 from Crypto.PublicKey import RSA
 from Crypto.Signature import pkcs1_15
 from Crypto.Hash import SHA256
@@ -46,36 +47,48 @@ st.set_page_config(page_title="管理员发码器", page_icon="👑")
 st.title("👑 超级管理员控制台")
 st.markdown("---")
 
-# 侧边栏：获取私钥 (从云端安全配置中读取)
-# 在 Streamlit Cloud 的 Secrets 里配置 PRIVATE_KEY
+# 侧边栏：获取私钥
 private_key = st.secrets.get("PRIVATE_KEY")
 
 if not private_key:
     st.error("⚠️ 严重错误：未检测到私钥配置！请在后台 Secrets 设置 PRIVATE_KEY。")
     st.stop()
 
-# Tab 布局，手机上切换很方便
+# Tab 布局
 tab1, tab2 = st.tabs(["✨ 生成激活码", "♻️ 换绑验证"])
 
 # --- Tab 1: 生成激活码 ---
 with tab1:
     st.header("1. 生成新激活码")
     hwid_input = st.text_input("请输入客户机器码", placeholder="例如: BFEBFBFF000906EA-...")
-    days_input = st.number_input("有效期 (天)", min_value=1, value=365)
+    
+    # 修改点：允许输入 0，并增加提示说明
+    days_input = st.number_input("有效期 (天) - 输入 0 表示永久授权", min_value=0, value=365)
     
     if st.button("生成激活码", type="primary"):
         if not hwid_input.strip():
             st.warning("请先输入机器码")
         else:
-            # 构造数据
-            raw_data = f"{hwid_input}|{days_input}"
+            # === 修正核心逻辑：把天数转成日期字符串 ===
+            if days_input == 0:
+                expire_str = "PERMANENT"
+                st.info("ℹ️ 正在生成永久授权...")
+            else:
+                expire_date = datetime.datetime.now() + datetime.timedelta(days=days_input)
+                expire_str = expire_date.strftime("%Y-%m-%d")
+            
+            # 构造原始数据 (机器码|过期时间)
+            raw_data = f"{hwid_input}|{expire_str}"
+            
+            # 签名
             signature = sign_data(raw_data, private_key)
             
             if signature:
+                # 最终激活码格式
                 final_token = f"{raw_data}|{signature}"
                 st.success("✅ 生成成功！")
                 st.code(final_token, language="text")
-                st.caption("长按上方代码框可复制")
+                st.caption(f"有效期至: {expire_str}")
             else:
                 st.error("❌ 签名失败，请检查私钥格式")
 
