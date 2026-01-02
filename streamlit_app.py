@@ -63,7 +63,7 @@ with tab1:
     hwid_input = st.text_input("请输入客户机器码", placeholder="例如: BFEBFBFF000906EA-...")
     
     # 修改点：允许输入 0，并增加提示说明
-    days_input = st.number_input("有效期 (天) - 输入 0 表示永久授权", min_value=0, value=365)
+    days_input = st.number_input("有效期 (天) - 输入 0 表示永久授权", min_value=0, value=0)
     
     if st.button("生成激活码", type="primary"):
         if not hwid_input.strip():
